@@ -12,10 +12,9 @@ interface ContentCardProps {
 
 const typeLabels = {
 	news: "ARTICLE",
-	culture: "DISCOVERY",
+	recommendation: "RECOMMENDATION",
 	social: "COMMUNITY",
 };
-
 export function ContentCard({
 	item,
 	saved,
@@ -35,6 +34,7 @@ export function ContentCard({
 						: "aspect-[1.85]"
 				}`}
 			>
+				{/* eslint-disable-next-line @next/next/no-img-element */}
 				<img
 					src={item.image}
 					alt=""

@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-	ArrowDownRight,
 	ArrowUpRight,
 	ChevronDown,
 	CircleHelp,
@@ -14,7 +13,13 @@ import {
 import { Sidebar, type DashboardSection } from "./sidebar";
 import { Topbar } from "./topbar";
 import { ContentCard } from "@/components/feed/content-card";
-import { mockContent, trendingTopics } from "@/lib/mock-content";
+import { trendingTopics } from "@/lib/mock-content";
+import { useGetNewsQuery } from "@/features/content/api/content-api";
+import type { ContentItem } from "@/features/content/types/content";
+
+const categories = ["Technology", "Design", "Engineering", "Science"];
+const SAVED_ITEMS_KEY = "index-saved-items";
+const LEGACY_SAVED_KEY = "index-saved";
 
 export function DashboardShell() {
 	const [activeSection, setActiveSection] =
@@ -22,53 +27,89 @@ export function DashboardShell() {
 	const [search, setSearch] = useState("");
 	const [darkMode, setDarkMode] = useState(false);
 	const [mobileOpen, setMobileOpen] = useState(false);
-	const [savedIds, setSavedIds] = useState<string[]>([]);
-	const [selectedCategory, setSelectedCategory] = useState("All");
+	const [savedItems, setSavedItems] = useState<ContentItem[]>([]);
+	const [selectedCategory, setSelectedCategory] = useState("Technology");
+	const [preferencesLoaded, setPreferencesLoaded] = useState(false);
+
+	const {
+		data: newsData,
+		isLoading,
+		isFetching,
+		isError,
+		refetch,
+	} = useGetNewsQuery(
+		{ category: selectedCategory },
+		{ skip: activeSection !== "For you" },
+	);
 
 	useEffect(() => {
 		const storedTheme = localStorage.getItem("index-theme");
-		const storedSaved = localStorage.getItem("index-saved");
+		const storedItems = localStorage.getItem(SAVED_ITEMS_KEY);
+		const legacySaved = localStorage.getItem(LEGACY_SAVED_KEY);
 
+		// Browser preferences are hydrated after the first client render.
 		// eslint-disable-next-line react-hooks/set-state-in-effect
 		if (storedTheme === "dark") setDarkMode(true);
-		if (storedSaved) {
+
+		if (storedItems) {
 			try {
-				setSavedIds(JSON.parse(storedSaved) as string[]);
+				const parsed = JSON.parse(storedItems) as ContentItem[];
+				if (Array.isArray(parsed)) setSavedItems(parsed);
 			} catch {
-				localStorage.removeItem("index-saved");
+				localStorage.removeItem(SAVED_ITEMS_KEY);
+			}
+		} else if (legacySaved) {
+			// Migrate IDs from the earlier mock-feed implementation.
+			try {
+				const ids = JSON.parse(legacySaved) as string[];
+				if (Array.isArray(ids)) {
+					setSavedItems(
+						ids
+							.map((id) => ({
+								id,
+								type: "news" as const,
+								category: "",
+								source: "",
+								title: "",
+								description: "",
+								publishedAt: "",
+							}))
+							.filter((item) => item.id),
+					);
+				}
+			} catch {
+				localStorage.removeItem(LEGACY_SAVED_KEY);
 			}
 		}
+
+		setPreferencesLoaded(true);
 	}, []);
 
 	useEffect(() => {
+		if (!preferencesLoaded) return;
+
 		document.documentElement.dataset.theme = darkMode ? "dark" : "light";
 		localStorage.setItem("index-theme", darkMode ? "dark" : "light");
-	}, [darkMode]);
+	}, [darkMode, preferencesLoaded]);
 
 	useEffect(() => {
-		localStorage.setItem("index-saved", JSON.stringify(savedIds));
-	}, [savedIds]);
+		if (!preferencesLoaded) return;
 
-	const categories = useMemo(
-		() => [
-			"All",
-			...Array.from(new Set(mockContent.map((item) => item.category))),
-		],
-		[],
-	);
+		localStorage.setItem(SAVED_ITEMS_KEY, JSON.stringify(savedItems));
+		localStorage.setItem(
+			LEGACY_SAVED_KEY,
+			JSON.stringify(savedItems.map((item) => item.id)),
+		);
+	}, [savedItems, preferencesLoaded]);
+
+	const feedItems = useMemo(() => newsData?.items ?? [], [newsData?.items]);
 
 	const visibleContent = useMemo(() => {
-		let items = [...mockContent];
-
-		if (activeSection === "Saved") {
-			items = items.filter((item) => savedIds.includes(item.id));
-		}
-
-		if (selectedCategory !== "All" && activeSection === "For you") {
-			items = items.filter((item) => item.category === selectedCategory);
-		}
+		let items =
+			activeSection === "Saved" ? [...savedItems] : [...feedItems];
 
 		const query = search.trim().toLowerCase();
+
 		if (query) {
 			items = items.filter((item) =>
 				[
@@ -77,19 +118,24 @@ export function DashboardShell() {
 					item.category,
 					item.source,
 					item.type,
-				].some((value) => value.toLowerCase().includes(query)),
+				].some((value) => value?.toLowerCase().includes(query)),
 			);
 		}
 
 		return items;
-	}, [activeSection, savedIds, selectedCategory, search]);
+	}, [activeSection, feedItems, savedItems, search]);
 
 	function toggleSaved(id: string) {
-		setSavedIds((current) =>
-			current.includes(id)
-				? current.filter((savedId) => savedId !== id)
-				: [...current, id],
-		);
+		setSavedItems((current) => {
+			const alreadySaved = current.some((item) => item.id === id);
+
+			if (alreadySaved) {
+				return current.filter((item) => item.id !== id);
+			}
+
+			const itemToSave = feedItems.find((item) => item.id === id);
+			return itemToSave ? [...current, itemToSave] : current;
+		});
 	}
 
 	const pageTitle = {
@@ -110,6 +156,7 @@ export function DashboardShell() {
 					onNavigate={setActiveSection}
 					mobileOpen={mobileOpen}
 					onClose={() => setMobileOpen(false)}
+					savedCount={savedItems.length}
 				/>
 
 				<div className="min-w-0 flex-1">
@@ -165,6 +212,7 @@ export function DashboardShell() {
 								{categories.map((category) => {
 									const active =
 										selectedCategory === category;
+
 									return (
 										<button
 											key={category}
@@ -173,7 +221,7 @@ export function DashboardShell() {
 											}
 											className={`rounded-full px-3 py-1.5 text-[10px] font-medium transition ${
 												active
-													? "bg-ink text-white"
+													? "bg-ink text-surface"
 													: "border border-line bg-surface text-ink-soft hover:border-line-strong hover:text-ink"
 											}`}
 										>
@@ -279,15 +327,43 @@ export function DashboardShell() {
 										</div>
 									)}
 
-									{visibleContent.length > 0 ? (
+									{activeSection === "For you" &&
+									isLoading ? (
+										<div className="flex min-h-[280px] items-center justify-center rounded-xl border border-line bg-surface text-[12px] text-ink-subtle">
+											<span className="mr-2 size-3 animate-spin rounded-full border-2 border-line-strong border-t-accent" />
+											Loading stories…
+										</div>
+									) : activeSection === "For you" &&
+									  isError ? (
+										<div className="flex min-h-[280px] flex-col items-center justify-center rounded-xl border border-dashed border-line-strong bg-surface/50 px-6 text-center">
+											<span className="grid size-11 place-items-center rounded-xl bg-surface-muted text-ink-subtle">
+												<Compass size={20} />
+											</span>
+											<h2 className="mt-4 text-sm font-semibold text-ink">
+												Stories couldn’t be loaded
+											</h2>
+											<p className="mt-1 max-w-[270px] text-[11px] leading-5 text-ink-subtle">
+												Check your connection or try
+												again in a moment.
+											</p>
+											<button
+												onClick={() => refetch()}
+												className="mt-4 rounded-lg bg-ink px-3 py-2 text-[11px] font-medium text-white transition hover:opacity-85"
+											>
+												Try again
+											</button>
+										</div>
+									) : visibleContent.length > 0 ? (
 										<div className="flex flex-col gap-4">
 											{visibleContent.map(
 												(item, index) => (
 													<ContentCard
 														key={item.id}
 														item={item}
-														saved={savedIds.includes(
-															item.id,
+														saved={savedItems.some(
+															(savedItem) =>
+																savedItem.id ===
+																item.id,
 														)}
 														onToggleSaved={
 															toggleSaved
@@ -295,14 +371,18 @@ export function DashboardShell() {
 														featured={
 															index === 0 &&
 															!search &&
-															selectedCategory ===
-																"All" &&
 															activeSection ===
 																"For you"
 														}
 													/>
 												),
 											)}
+											{activeSection === "For you" &&
+												isFetching && (
+													<p className="py-2 text-center text-[10px] text-ink-subtle">
+														Updating stories…
+													</p>
+												)}
 										</div>
 									) : (
 										<div className="flex min-h-[280px] flex-col items-center justify-center rounded-xl border border-dashed border-line-strong bg-surface/50 px-6 text-center">
@@ -351,12 +431,12 @@ export function DashboardShell() {
 													In your feed
 												</p>
 												<p className="mt-1 text-xl font-semibold tracking-[-0.8px] text-ink">
-													{mockContent.length
+													{feedItems.length
 														.toString()
 														.padStart(2, "0")}
 												</p>
 												<p className="mt-1 text-[9px] text-ink-subtle">
-													Curated items
+													Current category
 												</p>
 											</div>
 											<div className="rounded-lg bg-surface-muted p-3">
@@ -364,7 +444,7 @@ export function DashboardShell() {
 													Saved
 												</p>
 												<p className="mt-1 text-xl font-semibold tracking-[-0.8px] text-ink">
-													{savedIds.length
+													{savedItems.length
 														.toString()
 														.padStart(2, "0")}
 												</p>

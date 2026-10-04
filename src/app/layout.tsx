@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { StoreProvider } from "@/lib/store/provider";
 
 export const metadata: Metadata = {
 	title: "Index — Your content, in context",
@@ -14,7 +15,9 @@ export default function RootLayout({
 }>) {
 	return (
 		<html lang="en" suppressHydrationWarning>
-			<body>{children}</body>
+			<body>
+				<StoreProvider>{children}</StoreProvider>
+			</body>
 		</html>
 	);
 }

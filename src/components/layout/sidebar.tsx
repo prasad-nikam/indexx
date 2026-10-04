@@ -17,6 +17,7 @@ interface SidebarProps {
 	onNavigate: (section: DashboardSection) => void;
 	mobileOpen: boolean;
 	onClose: () => void;
+	savedCount: number;
 }
 
 const navigation: {
@@ -33,6 +34,7 @@ export function Sidebar({
 	onNavigate,
 	mobileOpen,
 	onClose,
+	savedCount,
 }: SidebarProps) {
 	return (
 		<>
@@ -109,8 +111,8 @@ export function Sidebar({
 								/>
 								<span>{label}</span>
 								{label === "Saved" && (
-									<span className="ml-auto rounded-md bg-surface-muted px-1.5 py-0.5 text-[10px] text-ink-subtle">
-										0
+									<span className="ml-auto rounded-md bg-surface-muted px-1.5 py-0.5 text-[10px] tabular-nums text-ink-subtle">
+										{savedCount}
 									</span>
 								)}
 							</button>

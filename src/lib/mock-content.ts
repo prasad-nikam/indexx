@@ -1,18 +1,6 @@
-export type ContentType = "news" | "culture" | "social";
+import type { ContentItem } from "@/features/content/types/content";
 
-export interface ContentItem {
-	id: string;
-	type: ContentType;
-	category: string;
-	source: string;
-	title: string;
-	description: string;
-	image: string;
-	publishedAt: string;
-	readTime?: string;
-	author?: string;
-	accent?: string;
-}
+export type { ContentItem } from "@/features/content/types/content";
 
 export const mockContent: ContentItem[] = [
 	{
@@ -26,11 +14,10 @@ export const mockContent: ContentItem[] = [
 		image: "https://images.unsplash.com/photo-1677442136019-21780ecad995?w=1200&q=85",
 		publishedAt: "12 min ago",
 		readTime: "6 min read",
-		accent: "blue",
 	},
 	{
 		id: "content-02",
-		type: "culture",
+		type: "recommendation",
 		category: "Design",
 		source: "Awwwards",
 		title: "A closer look at digital spaces that feel a little more human",
@@ -39,7 +26,6 @@ export const mockContent: ContentItem[] = [
 		image: "https://images.unsplash.com/photo-1497366754035-f200968a6e72?w=900&q=85",
 		publishedAt: "38 min ago",
 		readTime: "4 min read",
-		accent: "orange",
 	},
 	{
 		id: "content-03",
@@ -52,7 +38,6 @@ export const mockContent: ContentItem[] = [
 		image: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=900&q=85",
 		publishedAt: "1 hr ago",
 		author: "Maya Chen",
-		accent: "green",
 	},
 	{
 		id: "content-04",
@@ -65,7 +50,6 @@ export const mockContent: ContentItem[] = [
 		image: "https://images.unsplash.com/photo-1532094349884-543bc11b234d?w=900&q=85",
 		publishedAt: "2 hrs ago",
 		readTime: "8 min read",
-		accent: "violet",
 	},
 ];
 
