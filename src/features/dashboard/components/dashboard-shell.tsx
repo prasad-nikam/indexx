@@ -12,10 +12,12 @@ import {
 } from "lucide-react";
 import { Sidebar, type DashboardSection } from "./sidebar";
 import { Topbar } from "./topbar";
-import { ContentCard } from "@/components/feed/content-card";
-import { trendingTopics } from "@/lib/mock-content";
-import { useGetNewsQuery } from "@/features/content/api/content-api";
+
 import type { ContentItem } from "@/features/content/types/content";
+import { ContentCard } from "@/features/content/components/content-card";
+import { FeedPagination } from "@/features/content/components/feed-pagination";
+import { trendingTopics } from "@/features/content/data/mock-content";
+import { useNewsFeed } from "@/features/content/hooks/use-news-feed";
 
 const categories = ["Technology", "Design", "Engineering", "Science"];
 const SAVED_ITEMS_KEY = "index-saved-items";
@@ -32,15 +34,17 @@ export function DashboardShell() {
 	const [preferencesLoaded, setPreferencesLoaded] = useState(false);
 
 	const {
-		data: newsData,
+		items: feedItems,
 		isLoading,
 		isFetching,
-		isError,
-		refetch,
-	} = useGetNewsQuery(
-		{ category: selectedCategory },
-		{ skip: activeSection !== "For you" },
-	);
+		isInitialError,
+		isLoadMoreError,
+		hasMore,
+		isFetchingMore,
+		loadMore,
+		retry,
+		sentinelRef,
+	} = useNewsFeed(selectedCategory, activeSection === "For you");
 
 	useEffect(() => {
 		const storedTheme = localStorage.getItem("index-theme");
@@ -101,8 +105,6 @@ export function DashboardShell() {
 			JSON.stringify(savedItems.map((item) => item.id)),
 		);
 	}, [savedItems, preferencesLoaded]);
-
-	const feedItems = useMemo(() => newsData?.items ?? [], [newsData?.items]);
 
 	const visibleContent = useMemo(() => {
 		let items =
@@ -334,7 +336,7 @@ export function DashboardShell() {
 											Loading stories…
 										</div>
 									) : activeSection === "For you" &&
-									  isError ? (
+									  isInitialError ? (
 										<div className="flex min-h-[280px] flex-col items-center justify-center rounded-xl border border-dashed border-line-strong bg-surface/50 px-6 text-center">
 											<span className="grid size-11 place-items-center rounded-xl bg-surface-muted text-ink-subtle">
 												<Compass size={20} />
@@ -347,7 +349,7 @@ export function DashboardShell() {
 												again in a moment.
 											</p>
 											<button
-												onClick={() => refetch()}
+												onClick={retry}
 												className="mt-4 rounded-lg bg-ink px-3 py-2 text-[11px] font-medium text-white transition hover:opacity-85"
 											>
 												Try again
@@ -413,6 +415,18 @@ export function DashboardShell() {
 											)}
 										</div>
 									)}
+									{activeSection === "For you" &&
+										!isLoading &&
+										!isInitialError && (
+											<FeedPagination
+												sentinelRef={sentinelRef}
+												hasMore={hasMore}
+												isFetchingMore={isFetchingMore}
+												hasError={isLoadMoreError}
+												onLoadMore={loadMore}
+												onRetry={retry}
+											/>
+										)}
 								</section>
 
 								<aside className="hidden min-w-0 flex-col gap-4 xl:flex">

@@ -1,7 +1,7 @@
 "use client";
 
 import { Bookmark, Clock3, ExternalLink, MessageCircle } from "lucide-react";
-import type { ContentItem } from "@/lib/mock-content";
+import type { ContentItem } from "../types/content";
 
 interface ContentCardProps {
 	item: ContentItem;
