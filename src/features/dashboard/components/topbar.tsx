@@ -25,7 +25,7 @@ export function Topbar({
 				type="button"
 				onClick={onOpenMenu}
 				aria-label="Open navigation"
-				className="grid size-9 shrink-0 place-items-center rounded-lg text-ink-soft transition hover:bg-surface-muted hover:text-ink md:hidden"
+				className="grid size-9 shrink-0 place-items-center rounded-lg text-ink-soft transition hover:bg-surface-muted hover:text-ink lg:hidden"
 			>
 				<Menu size={19} strokeWidth={1.8} />
 			</button>

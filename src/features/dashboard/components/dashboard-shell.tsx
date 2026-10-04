@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
 	ArrowLeft,
 	ArrowUpRight,
@@ -55,6 +55,9 @@ export function DashboardShell() {
 	const [selectedId, setSelectedId] = useState<string | null>(null);
 	const [preferencesLoaded, setPreferencesLoaded] = useState(false);
 
+	// Preserve the mobile index position while switching to and from a story.
+	const mobileReturnScrollY = useRef<number | null>(null);
+
 	const {
 		items: feedItems,
 		isLoading,
@@ -108,6 +111,16 @@ export function DashboardShell() {
 
 		setPreferencesLoaded(true);
 	}, []);
+
+	useEffect(() => {
+		if (mobileDetailOpen || mobileReturnScrollY.current === null) return;
+
+		window.scrollTo({
+			top: mobileReturnScrollY.current,
+			behavior: "auto",
+		});
+		mobileReturnScrollY.current = null;
+	}, [mobileDetailOpen]);
 
 	useEffect(() => {
 		if (!preferencesLoaded) return;
@@ -173,12 +186,17 @@ export function DashboardShell() {
 		setActiveSection(section);
 		setMobileOpen(false);
 		setMobileDetailOpen(false);
+		mobileReturnScrollY.current = null;
 		setSelectedId(null);
 
 		if (section !== "For you") setSearch("");
 	}
 
 	function selectItem(item: ContentItem) {
+		if (window.matchMedia("(max-width: 1023px)").matches) {
+			mobileReturnScrollY.current = window.scrollY;
+		}
+
 		setSelectedId(item.id);
 		setMobileDetailOpen(true);
 	}
@@ -221,8 +239,16 @@ export function DashboardShell() {
 						onOpenSettings={() => navigate("Settings")}
 					/>
 
-					<main className="mx-auto w-full max-w-[1480px] px-4 pb-12 pt-7 sm:px-6 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:overflow-hidden lg:px-9 lg:pb-5 lg:pt-6">
-						<header className="mb-7 flex shrink-0 flex-col justify-between gap-5 border-b border-line pb-6 sm:flex-row sm:items-end">
+					<main
+						className={`mx-auto w-full max-w-[1480px] min-w-0 px-4 pb-12 sm:px-6 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:overflow-hidden lg:px-9 lg:pb-5 lg:pt-6 ${
+							mobileDetailOpen ? "pt-2 sm:pt-3" : "pt-7"
+						}`}
+					>
+						<header
+							className={`${
+								mobileDetailOpen ? "hidden lg:flex" : "flex"
+							} mb-0 shrink-0 flex-col justify-between gap-5 pb-6 sm:flex-row sm:items-end`}
+						>
 							<div>
 								<div className="mb-3 flex items-center gap-2">
 									<span className="size-1.5 rounded-full bg-success" />
@@ -252,42 +278,6 @@ export function DashboardShell() {
 								</button>
 							)}
 						</header>
-
-						{activeSection === "For you" && (
-							<nav
-								aria-label="Explore categories"
-								className="mb-5 flex shrink-0 items-center gap-2 overflow-x-auto border-b border-line pb-4"
-							>
-								<span className="mr-2 shrink-0 text-[10px] font-medium uppercase tracking-wider text-ink-subtle">
-									Topics
-								</span>
-
-								{categories.map((category) => {
-									const active =
-										selectedCategory === category;
-
-									return (
-										<button
-											key={category}
-											type="button"
-											onClick={() => {
-												setSelectedCategory(category);
-												setSelectedId(null);
-												setMobileDetailOpen(false);
-											}}
-											aria-pressed={active}
-											className={`shrink-0 rounded-md px-3 py-2 text-xs font-medium transition ${
-												active
-													? "bg-ink text-surface"
-													: "text-ink-soft hover:bg-surface-muted hover:text-ink"
-											}`}
-										>
-											{category}
-										</button>
-									);
-								})}
-							</nav>
-						)}
 
 						{activeSection === "Settings" ? (
 							<section className="max-w-2xl border-y border-line lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
@@ -325,7 +315,7 @@ export function DashboardShell() {
 										onClick={() =>
 											setDarkMode((value) => !value)
 										}
-										className="rounded-lg border border-line px-3 py-2 text-xs font-medium text-ink-soft transition hover:bg-surface-muted"
+										className="min-h-11 rounded-lg border border-line px-3 py-2 text-xs font-medium text-ink-soft transition hover:bg-surface-muted"
 									>
 										{darkMode
 											? "Dark mode · Change"
@@ -368,7 +358,7 @@ export function DashboardShell() {
 												setSearch(topic.label);
 												navigate("For you");
 											}}
-											className="group flex w-full items-center gap-4 py-4 text-left transition hover:bg-surface-muted/50"
+											className="group flex min-h-14 w-full items-center gap-4 py-4 text-left transition hover:bg-surface-muted/50"
 										>
 											<span className="w-7 shrink-0 font-mono text-[10px] text-ink-subtle">
 												{String(index + 1).padStart(
@@ -404,7 +394,7 @@ export function DashboardShell() {
 								aria-label="Content browser"
 								className="lg:flex lg:min-h-0 lg:flex-1 lg:flex-col"
 							>
-								{search.trim() && (
+								{search.trim() && !mobileDetailOpen && (
 									<div className="mb-3 flex shrink-0 items-center justify-between gap-3">
 										<p className="text-xs text-ink-soft">
 											Search results for{" "}
@@ -416,7 +406,7 @@ export function DashboardShell() {
 										<button
 											type="button"
 											onClick={() => setSearch("")}
-											className="text-[11px] font-medium text-accent hover:underline"
+											className="min-h-11 px-2 text-[11px] font-medium text-accent hover:underline"
 										>
 											Clear
 										</button>
@@ -445,7 +435,7 @@ export function DashboardShell() {
 										<button
 											type="button"
 											onClick={retry}
-											className="mt-4 rounded-lg bg-ink px-3 py-2 text-xs font-medium text-surface transition hover:opacity-80"
+											className="mt-4 min-h-11 rounded-lg bg-ink px-4 py-2 text-xs font-medium text-surface transition hover:opacity-80"
 										>
 											Try again
 										</button>
@@ -482,7 +472,7 @@ export function DashboardShell() {
 												onClick={() =>
 													navigate("For you")
 												}
-												className="mt-4 text-xs font-medium text-accent hover:underline"
+												className="mt-4 min-h-11 px-2 text-xs font-medium text-accent hover:underline"
 											>
 												Explore your feed
 											</button>
@@ -498,19 +488,60 @@ export function DashboardShell() {
 													: "block"
 											}`}
 										>
-											<div className="sticky top-0 z-10 flex h-11 items-center justify-between border-b border-line bg-surface px-3 sm:px-4">
-												<span className="text-[10px] font-semibold uppercase tracking-[1.2px] text-ink-subtle">
-													{activeSection === "Saved"
-														? "Saved index"
-														: "Story index"}
-												</span>
+											<div className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-line bg-surface px-3 sm:px-4">
+												{activeSection ===
+													"For you" && (
+													<nav
+														aria-label="Explore categories"
+														className="flex min-w-0 shrink-0 text-sm items-center gap-1.5 overflow-x-auto py-2 sm:gap-2"
+													>
+														<span className="mr-1 shrink-0 text-[10px] font-medium uppercase tracking-wider text-ink-subtle sm:mr-2">
+															Topics
+														</span>
 
-												<span className="font-mono text-[10px] tabular-nums text-ink-subtle">
-													{String(
-														visibleContent.length,
-													).padStart(2, "0")}{" "}
-													ITEMS
-												</span>
+														{categories.map(
+															(category) => {
+																const active =
+																	selectedCategory ===
+																	category;
+
+																return (
+																	<button
+																		key={
+																			category
+																		}
+																		type="button"
+																		onClick={() => {
+																			setSelectedCategory(
+																				category,
+																			);
+																			setSelectedId(
+																				null,
+																			);
+																			setMobileDetailOpen(
+																				false,
+																			);
+																			mobileReturnScrollY.current =
+																				null;
+																		}}
+																		aria-pressed={
+																			active
+																		}
+																		className={`min-h-8 shrink-0 rounded-md px-3 py-1 text-xs font-medium transition ${
+																			active
+																				? "bg-ink text-surface"
+																				: "text-ink-soft hover:bg-surface-muted hover:text-ink"
+																		}`}
+																	>
+																		{
+																			category
+																		}
+																	</button>
+																);
+															},
+														)}
+													</nav>
+												)}
 											</div>
 
 											<div className="divide-y divide-line">
@@ -542,10 +573,10 @@ export function DashboardShell() {
 																	aria-pressed={
 																		active
 																	}
-																	className="flex min-w-0 flex-1 gap-3 px-3 py-4 text-left sm:gap-3.5 sm:px-4"
+																	className="flex min-w-0 flex-1 gap-2.5 px-2.5 py-4 text-left sm:gap-3.5 sm:px-4"
 																>
 																	<span
-																		className={`mt-0.5 w-5 shrink-0 font-mono text-[10px] tabular-nums ${
+																		className={`mt-0.5 w-4 shrink-0 font-mono text-[10px] tabular-nums sm:w-5 ${
 																			active
 																				? "text-accent"
 																				: "text-ink-subtle"
@@ -561,7 +592,7 @@ export function DashboardShell() {
 																	</span>
 
 																	{item.image && (
-																		<div className="mt-0.5 h-[58px] w-[76px] shrink-0 overflow-hidden rounded-md bg-surface-muted sm:h-[64px] sm:w-[88px]">
+																		<div className="mt-0.5 h-[52px] w-[64px] shrink-0 overflow-hidden rounded-md bg-surface-muted sm:h-[64px] sm:w-[88px]">
 																			{/* eslint-disable-next-line @next/next/no-img-element */}
 																			<img
 																				src={
@@ -619,7 +650,7 @@ export function DashboardShell() {
 																			? "Remove saved item"
 																			: "Save item"
 																	}
-																	className="mr-1 mt-3 grid size-9 shrink-0 place-items-center self-start rounded-md text-ink-subtle transition hover:bg-surface hover:text-accent sm:mr-2"
+																	className="mr-1 mt-2 grid size-11 shrink-0 place-items-center self-start rounded-md text-ink-subtle transition hover:bg-surface hover:text-accent sm:mr-2 sm:mt-3 sm:size-9"
 																>
 																	{saved ? (
 																		<BookmarkCheck
@@ -688,7 +719,7 @@ export function DashboardShell() {
 																	false,
 																)
 															}
-															className="inline-flex min-h-9 items-center gap-2 text-xs font-medium text-ink-soft transition hover:text-ink lg:hidden"
+															className="inline-flex h-full min-h-11 items-center gap-2 px-1 text-xs font-medium text-ink-soft transition hover:text-ink lg:hidden"
 														>
 															<ArrowLeft
 																size={14}
@@ -708,7 +739,7 @@ export function DashboardShell() {
 																		selectedItem.id,
 																	)
 																}
-																className="inline-flex h-9 items-center gap-2 rounded-md px-2 text-xs font-medium text-ink-soft transition hover:bg-surface-muted hover:text-ink"
+																className="inline-flex h-11 items-center gap-2 rounded-md px-2 text-xs font-medium text-ink-soft transition hover:bg-surface-muted hover:text-ink lg:h-8"
 															>
 																{isSaved(
 																	selectedItem.id,
@@ -789,7 +820,7 @@ export function DashboardShell() {
 																}
 																target="_blank"
 																rel="noreferrer"
-																className="mt-6 inline-flex w-fit items-center gap-2 rounded-md border border-line px-3 py-2 text-xs font-medium text-ink-soft transition hover:border-line-strong hover:bg-surface-muted hover:text-ink"
+																className="mt-6 inline-flex min-h-11 w-fit items-center gap-2 rounded-md border border-line px-3 py-2 text-xs font-medium text-ink-soft transition hover:border-line-strong hover:bg-surface-muted hover:text-ink"
 															>
 																Read original
 																article

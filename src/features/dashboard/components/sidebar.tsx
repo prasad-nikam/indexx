@@ -53,25 +53,23 @@ export function Sidebar({
 					type="button"
 					aria-label="Close navigation overlay"
 					onClick={onClose}
-					className="fixed inset-0 z-40 bg-[#171a16]/35 backdrop-blur-[2px] md:hidden"
+					className="fixed inset-0 z-40 bg-[#171a16]/40 backdrop-blur-[2px] lg:hidden"
 				/>
 			)}
 
 			<aside
 				aria-label="Application navigation"
 				className={[
-					"fixed inset-y-0 left-0 z-50 flex h-dvh flex-col",
-					"border-r border-line bg-surface",
-					"transition-[width,transform] duration-200 ease-out",
-					"w-[264px] px-4 py-4",
-					"md:sticky md:top-0 md:z-20 md:h-full md:w-[76px] md:shrink-0 md:items-center md:px-2",
-					"lg:w-[224px] lg:items-stretch lg:px-4",
+					"fixed inset-y-0 left-0 z-50 flex h-dvh w-[264px] flex-col",
+					"border-r border-line bg-surface px-4 py-4",
+					"transition-transform duration-200 ease-out",
+					"lg:sticky lg:top-0 lg:z-20 lg:h-full lg:w-[224px] lg:shrink-0",
 					mobileOpen
 						? "translate-x-0"
-						: "-translate-x-full md:translate-x-0",
+						: "-translate-x-full lg:translate-x-0",
 				].join(" ")}
 			>
-				<div className="flex h-11 w-full items-center justify-between md:justify-center lg:justify-between">
+				<div className="flex h-11 w-full items-center justify-between">
 					<button
 						type="button"
 						onClick={() => navigate("For you")}
@@ -82,7 +80,7 @@ export function Sidebar({
 						<span className="grid size-9 shrink-0 place-items-center rounded-xl bg-ink text-white transition-transform duration-200 group-hover:rotate-[-4deg]">
 							<Layers3 size={17} strokeWidth={2.1} />
 						</span>
-						<span className="text-[17px] font-semibold tracking-[-0.8px] text-ink md:hidden lg:inline">
+						<span className="text-[17px] font-semibold tracking-[-0.8px] text-ink">
 							index<span className="text-accent">.</span>
 						</span>
 					</button>
@@ -91,19 +89,19 @@ export function Sidebar({
 						type="button"
 						onClick={onClose}
 						aria-label="Close navigation"
-						className="grid size-9 place-items-center rounded-lg text-ink-soft transition hover:bg-surface-muted hover:text-ink md:hidden"
+						className="grid size-9 place-items-center rounded-lg text-ink-soft transition hover:bg-surface-muted hover:text-ink lg:hidden"
 					>
 						<X size={18} strokeWidth={1.8} />
 					</button>
 				</div>
 
-				<div className="mt-10 hidden w-full px-2 md:block">
+				<div className="mt-10 w-full px-2">
 					<div className="h-px w-full bg-line" />
 				</div>
 
 				<nav
 					aria-label="Main navigation"
-					className="mt-8 flex w-full flex-col gap-1 md:mt-5 md:items-center lg:items-stretch"
+					className="mt-5 flex w-full flex-col gap-1"
 				>
 					{navigation.map(({ label, icon: Icon, description }) => {
 						const active = activeSection === label;
@@ -114,20 +112,17 @@ export function Sidebar({
 								type="button"
 								onClick={() => navigate(label)}
 								aria-current={active ? "page" : undefined}
-								aria-label={label}
 								title={description}
 								className={[
 									"group relative flex h-11 w-full items-center gap-3 rounded-xl px-3",
-									"text-[12px] font-medium transition-colors duration-150",
-									"md:w-11 md:justify-center md:px-0",
-									"lg:w-full lg:justify-start lg:px-3",
+									"text-[13px] font-medium transition-colors duration-150",
 									active
 										? "bg-accent-soft text-accent-ink"
 										: "text-ink-soft hover:bg-surface-muted hover:text-ink",
 								].join(" ")}
 							>
 								{active && (
-									<span className="absolute bottom-2 left-0 top-2 w-[3px] rounded-r-full bg-accent md:hidden lg:block" />
+									<span className="absolute bottom-2 left-0 top-2 w-[3px] rounded-r-full bg-accent" />
 								)}
 
 								<Icon
@@ -141,51 +136,38 @@ export function Sidebar({
 									].join(" ")}
 								/>
 
-								<span className="hidden flex-1 text-left lg:block">
+								<span className="flex-1 text-left">
 									{label}
 								</span>
 
 								{label === "Saved" && savedCount > 0 && (
-									<>
-										<span className="hidden rounded-md bg-surface-muted px-1.5 py-0.5 text-[10px] tabular-nums text-ink-soft lg:inline-flex">
-											{savedCount}
-										</span>
-										<span
-											aria-hidden="true"
-											className="absolute right-1 top-1 hidden size-2 rounded-full border-2 border-surface bg-accent md:block lg:hidden"
-										/>
-									</>
-								)}
-
-								{active && (
-									<span className="absolute -left-2 top-1/2 hidden h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-accent md:block lg:hidden" />
+									<span className="inline-flex rounded-md bg-surface-muted px-1.5 py-0.5 text-[10px] tabular-nums text-ink-soft">
+										{savedCount}
+									</span>
 								)}
 							</button>
 						);
 					})}
 				</nav>
 
-				<div className="mt-8 w-full border-t border-line pt-4 md:mt-5 md:flex md:justify-center lg:justify-start">
+				<div className="mt-5 w-full border-t border-line pt-4">
 					<button
 						type="button"
 						onClick={() => navigate("Settings")}
 						aria-current={
 							activeSection === "Settings" ? "page" : undefined
 						}
-						aria-label="Preferences"
 						title="Preferences"
 						className={[
 							"group relative flex h-11 w-full items-center gap-3 rounded-xl px-3",
-							"text-[12px] font-medium transition-colors duration-150",
-							"md:w-11 md:justify-center md:px-0",
-							"lg:w-full lg:justify-start lg:px-3",
+							"text-[13px] font-medium transition-colors duration-150",
 							activeSection === "Settings"
 								? "bg-accent-soft text-accent-ink"
 								: "text-ink-soft hover:bg-surface-muted hover:text-ink",
 						].join(" ")}
 					>
 						{activeSection === "Settings" && (
-							<span className="absolute bottom-2 left-0 top-2 w-[3px] rounded-r-full bg-accent md:hidden lg:block" />
+							<span className="absolute bottom-2 left-0 top-2 w-[3px] rounded-r-full bg-accent" />
 						)}
 
 						<Settings2
@@ -200,15 +182,11 @@ export function Sidebar({
 							}
 						/>
 
-						<span className="hidden lg:inline">Preferences</span>
-
-						{activeSection === "Settings" && (
-							<span className="absolute -left-2 top-1/2 hidden h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-accent md:block lg:hidden" />
-						)}
+						<span className="flex-1 text-left">Preferences</span>
 					</button>
 				</div>
 
-				<div className="mt-auto flex w-full items-center gap-3 border-t border-line pt-4 md:justify-center md:px-0 lg:justify-start lg:px-1">
+				<div className="mt-auto flex w-full items-center gap-3 border-t border-line px-1 pt-4">
 					<div
 						aria-label="Prasad Nikam"
 						title="Prasad Nikam"
@@ -217,7 +195,7 @@ export function Sidebar({
 						PN
 					</div>
 
-					<div className="hidden min-w-0 flex-1 lg:block">
+					<div className="min-w-0 flex-1">
 						<p className="truncate text-xs font-semibold text-ink">
 							Prasad Nikam
 						</p>
@@ -226,7 +204,7 @@ export function Sidebar({
 						</p>
 					</div>
 
-					<span className="mr-1 hidden size-1.5 rounded-full bg-success lg:block" />
+					<span className="mr-1 size-1.5 shrink-0 rounded-full bg-success" />
 				</div>
 			</aside>
 		</>
