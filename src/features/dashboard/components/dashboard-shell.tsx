@@ -21,6 +21,13 @@ import { FeedPagination } from "@/features/content/components/feed-pagination";
 import { trendingTopics } from "@/features/content/data/mock-content";
 import { useNewsFeed } from "@/features/content/hooks/use-news-feed";
 
+import { PreferencesOnboarding } from "@/features/preferences/components/preferences-onboarding";
+import { usePreferences } from "@/features/preferences/hooks/use-preferences";
+import {
+	PREFERENCE_TOPICS,
+	type PreferenceTopic,
+} from "@/features/preferences/types/preferences";
+
 const categories = ["Technology", "Design", "Engineering", "Science"];
 const SAVED_ITEMS_KEY = "index-saved-items";
 const LEGACY_SAVED_KEY = "index-saved";
@@ -57,6 +64,15 @@ export function DashboardShell() {
 
 	// Preserve the mobile index position while switching to and from a story.
 	const mobileReturnScrollY = useRef<number | null>(null);
+
+	const {
+		preferences,
+		isLoaded: userPreferencesLoaded,
+		isFirstVisit,
+		storageAvailable,
+		completeOnboarding,
+		toggleTopic,
+	} = usePreferences();
 
 	const {
 		items: feedItems,
@@ -139,6 +155,25 @@ export function DashboardShell() {
 		);
 	}, [savedItems, preferencesLoaded]);
 
+	useEffect(() => {
+		if (!userPreferencesLoaded || preferences.topics.length === 0) {
+			return;
+		}
+
+		// eslint-disable-next-line react-hooks/set-state-in-effect
+		setSelectedCategory((current) => {
+			if (preferences.topics.includes(current as PreferenceTopic)) {
+				return current;
+			}
+
+			return preferences.topics[0];
+		});
+
+		setSelectedId(null);
+		setMobileDetailOpen(false);
+		mobileReturnScrollY.current = null;
+	}, [preferences.topics, userPreferencesLoaded]);
+
 	const visibleContent = useMemo(() => {
 		let items =
 			activeSection === "Saved" ? [...savedItems] : [...feedItems];
@@ -214,6 +249,28 @@ export function DashboardShell() {
 		Saved: "A personal archive of things worth returning to.",
 		Settings: "Shape your reading environment.",
 	}[activeSection];
+
+	if (!userPreferencesLoaded) {
+		return (
+			<main
+				className="flex min-h-dvh items-center justify-center bg-canvas text-ink"
+				aria-label="Loading your preferences"
+			>
+				<p className="text-sm text-ink-subtle">Preparing your Index…</p>
+			</main>
+		);
+	}
+
+	if (isFirstVisit) {
+		return (
+			<PreferencesOnboarding
+				onComplete={(topics) => {
+					completeOnboarding(topics);
+					setSelectedCategory(topics[0] ?? "Technology");
+				}}
+			/>
+		);
+	}
 
 	return (
 		<div
@@ -321,6 +378,99 @@ export function DashboardShell() {
 											? "Dark mode · Change"
 											: "Light mode · Change"}
 									</button>
+								</div>
+
+								<div className="border-t border-line py-5">
+									<div className="mb-4">
+										<h3 className="text-[13px] font-medium text-ink">
+											Topics you follow
+										</h3>
+										<p className="mt-1 text-xs leading-5 text-ink-subtle">
+											Choose the subjects you want Index
+											to prioritize.
+										</p>
+									</div>
+
+									<div className="flex flex-wrap gap-2">
+										{PREFERENCE_TOPICS.map(
+											(topic: PreferenceTopic) => {
+												const selected =
+													preferences.topics.includes(
+														topic,
+													);
+
+												return (
+													<button
+														key={topic}
+														type="button"
+														aria-pressed={selected}
+														onClick={() => {
+															if (
+																selected &&
+																preferences
+																	.topics
+																	.length ===
+																	1
+															) {
+																return;
+															}
+
+															const nextTopics =
+																selected
+																	? preferences.topics.filter(
+																			(
+																				item,
+																			) =>
+																				item !==
+																				topic,
+																		)
+																	: [
+																			...preferences.topics,
+																			topic,
+																		];
+
+															toggleTopic(topic);
+
+															if (
+																nextTopics.length >
+																	0 &&
+																!nextTopics.includes(
+																	selectedCategory as PreferenceTopic,
+																)
+															) {
+																setSelectedCategory(
+																	nextTopics[0],
+																);
+															}
+														}}
+														className={[
+															"min-h-11 rounded-lg border px-3 py-2 text-xs font-medium transition-colors",
+															"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2",
+															selected
+																? "border-accent bg-surface-muted text-ink"
+																: "border-line text-ink-soft hover:border-line-strong hover:text-ink",
+														].join(" ")}
+													>
+														{topic}
+														{selected
+															? " · Following"
+															: ""}
+													</button>
+												);
+											},
+										)}
+									</div>
+
+									{!storageAvailable && (
+										<p
+											role="status"
+											className="mt-3 text-xs text-ink-subtle"
+										>
+											Your browser couldn&apos;t save
+											these preferences. They may not
+											persist after you close this tab.
+										</p>
+									)}
 								</div>
 
 								<div className="flex items-center justify-between gap-4 border-t border-line py-5">
