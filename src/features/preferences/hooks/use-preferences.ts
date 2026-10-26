@@ -81,6 +81,29 @@ export function usePreferences() {
 		[preferences.topics, updatePreferences],
 	);
 
+	const reorderTopics = useCallback(
+		(orderedTopics: PreferenceTopic[]) => {
+			const followedTopics = new Set(preferences.topics);
+
+			// Only reorder topics the user currently follows.
+			// Never allow a reorder action to add or remove a topic.
+			if (
+				orderedTopics.length !== preferences.topics.length ||
+				orderedTopics.some((topic) => !followedTopics.has(topic)) ||
+				new Set(orderedTopics).size !== orderedTopics.length
+			) {
+				return;
+			}
+
+			persist({
+				...preferences,
+				topics: orderedTopics,
+				updatedAt: new Date().toISOString(),
+			});
+		},
+		[preferences, persist],
+	);
+
 	const completeOnboarding = useCallback(
 		(topics: PreferenceTopic[]) => {
 			const uniqueTopics = [...new Set(topics)];
@@ -106,6 +129,7 @@ export function usePreferences() {
 		storageAvailable,
 		updatePreferences,
 		toggleTopic,
+		reorderTopics,
 		completeOnboarding,
 	};
 }

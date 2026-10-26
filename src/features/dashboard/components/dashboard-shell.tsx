@@ -12,6 +12,9 @@ import {
 	SlidersHorizontal,
 	Sparkles,
 	TrendingUp,
+	ChevronDown,
+	ChevronUp,
+	GripVertical,
 } from "lucide-react";
 
 import { Sidebar, type DashboardSection } from "./sidebar";
@@ -28,7 +31,6 @@ import {
 	type PreferenceTopic,
 } from "@/features/preferences/types/preferences";
 
-const categories = ["Technology", "Design", "Engineering", "Science"];
 const SAVED_ITEMS_KEY = "index-saved-items";
 const LEGACY_SAVED_KEY = "index-saved";
 
@@ -58,7 +60,6 @@ export function DashboardShell() {
 	const [mobileOpen, setMobileOpen] = useState(false);
 	const [mobileDetailOpen, setMobileDetailOpen] = useState(false);
 	const [savedItems, setSavedItems] = useState<ContentItem[]>([]);
-	const [selectedCategory, setSelectedCategory] = useState("Technology");
 	const [selectedId, setSelectedId] = useState<string | null>(null);
 	const [preferencesLoaded, setPreferencesLoaded] = useState(false);
 
@@ -72,6 +73,7 @@ export function DashboardShell() {
 		storageAvailable,
 		completeOnboarding,
 		toggleTopic,
+		reorderTopics,
 	} = usePreferences();
 
 	const {
@@ -84,7 +86,7 @@ export function DashboardShell() {
 		loadMore,
 		retry,
 		sentinelRef,
-	} = useNewsFeed(selectedCategory, activeSection === "For you");
+	} = useNewsFeed(preferences.topics, activeSection === "For you");
 
 	useEffect(() => {
 		const storedTheme = localStorage.getItem("index-theme");
@@ -154,25 +156,6 @@ export function DashboardShell() {
 			JSON.stringify(savedItems.map((item) => item.id)),
 		);
 	}, [savedItems, preferencesLoaded]);
-
-	useEffect(() => {
-		if (!userPreferencesLoaded || preferences.topics.length === 0) {
-			return;
-		}
-
-		// eslint-disable-next-line react-hooks/set-state-in-effect
-		setSelectedCategory((current) => {
-			if (preferences.topics.includes(current as PreferenceTopic)) {
-				return current;
-			}
-
-			return preferences.topics[0];
-		});
-
-		setSelectedId(null);
-		setMobileDetailOpen(false);
-		mobileReturnScrollY.current = null;
-	}, [preferences.topics, userPreferencesLoaded]);
 
 	const visibleContent = useMemo(() => {
 		let items =
@@ -250,6 +233,44 @@ export function DashboardShell() {
 		Settings: "Shape your reading environment.",
 	}[activeSection];
 
+	const [draggedTopic, setDraggedTopic] = useState<PreferenceTopic | null>(
+		null,
+	);
+
+	function moveTopic(topic: PreferenceTopic, direction: -1 | 1) {
+		const current = preferences.topics;
+		const index = current.indexOf(topic);
+		const targetIndex = index + direction;
+
+		if (index < 0 || targetIndex < 0 || targetIndex >= current.length) {
+			return;
+		}
+
+		const next = [...current];
+		[next[index], next[targetIndex]] = [next[targetIndex], next[index]];
+
+		reorderTopics(next);
+	}
+
+	function dropTopic(target: PreferenceTopic) {
+		if (!draggedTopic || draggedTopic === target) {
+			setDraggedTopic(null);
+			return;
+		}
+
+		const next = [...preferences.topics];
+		const fromIndex = next.indexOf(draggedTopic);
+		const toIndex = next.indexOf(target);
+
+		if (fromIndex !== -1 && toIndex !== -1) {
+			next.splice(fromIndex, 1);
+			next.splice(toIndex, 0, draggedTopic);
+			reorderTopics(next);
+		}
+
+		setDraggedTopic(null);
+	}
+
 	if (!userPreferencesLoaded) {
 		return (
 			<main
@@ -266,7 +287,6 @@ export function DashboardShell() {
 			<PreferencesOnboarding
 				onComplete={(topics) => {
 					completeOnboarding(topics);
-					setSelectedCategory(topics[0] ?? "Technology");
 				}}
 			/>
 		);
@@ -297,7 +317,7 @@ export function DashboardShell() {
 					/>
 
 					<main
-						className={`mx-auto w-full max-w-[1480px] min-w-0 px-4 pb-12 sm:px-6 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:overflow-hidden lg:px-9 lg:pb-5 lg:pt-6 ${
+						className={`mx-auto w-full max-w-370 min-w-0 px-4 pb-12 sm:px-6 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:overflow-hidden lg:px-9 lg:pb-5 lg:pt-6 ${
 							mobileDetailOpen ? "pt-2 sm:pt-3" : "pt-7"
 						}`}
 					>
@@ -319,7 +339,7 @@ export function DashboardShell() {
 									<span className="text-accent">.</span>
 								</h1>
 
-								<p className="mt-2 max-w-[500px] text-[13px] leading-6 text-ink-soft">
+								<p className="mt-2 max-w-125 text-[13px] leading-6 text-ink-soft">
 									{pageDescription}
 								</p>
 							</div>
@@ -337,7 +357,7 @@ export function DashboardShell() {
 						</header>
 
 						{activeSection === "Settings" ? (
-							<section className="max-w-2xl border-y border-line lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
+							<section className="max-w-2xl border-y border-line lg:min-h-0 lg:flex-1 lg:overflow-y-auto pr-4 mr-4">
 								<div className="flex items-start gap-4 py-6">
 									<span className="grid size-9 shrink-0 place-items-center rounded-lg bg-surface-muted text-ink-soft">
 										<SlidersHorizontal size={17} />
@@ -386,79 +406,148 @@ export function DashboardShell() {
 											Topics you follow
 										</h3>
 										<p className="mt-1 text-xs leading-5 text-ink-subtle">
-											Choose the subjects you want Index
-											to prioritize.
+											Drag topics to change their
+											priority, or use the arrow controls.
+											Your order is saved automatically.
 										</p>
 									</div>
 
-									<div className="flex flex-wrap gap-2">
-										{PREFERENCE_TOPICS.map(
-											(topic: PreferenceTopic) => {
-												const selected =
-													preferences.topics.includes(
-														topic,
-													);
+									<div className="space-y-2">
+										{preferences.topics.map(
+											(topic, index) => (
+												<div
+													key={topic}
+													draggable
+													onDragStart={(event) => {
+														setDraggedTopic(topic);
+														event.dataTransfer.effectAllowed =
+															"move";
+														event.dataTransfer.setData(
+															"text/plain",
+															topic,
+														);
+													}}
+													onDragOver={(event) => {
+														event.preventDefault();
+														event.dataTransfer.dropEffect =
+															"move";
+													}}
+													onDrop={(event) => {
+														event.preventDefault();
+														dropTopic(topic);
+													}}
+													onDragEnd={() =>
+														setDraggedTopic(null)
+													}
+													className={[
+														"flex items-center gap-2 rounded-lg border border-line bg-surface px-2 py-2",
+														"transition-colors",
+														draggedTopic === topic
+															? "opacity-40"
+															: "hover:border-line-strong",
+													].join(" ")}
+												>
+													<span
+														className="grid size-8 shrink-0 cursor-grab place-items-center text-ink-subtle active:cursor-grabbing"
+														aria-hidden="true"
+													>
+														<GripVertical
+															size={16}
+														/>
+													</span>
 
-												return (
+													<span className="min-w-0 flex-1">
+														<span className="block text-xs font-medium text-ink">
+															{topic}
+														</span>
+														<span className="text-[10px] text-ink-subtle">
+															Priority {index + 1}
+														</span>
+													</span>
+
 													<button
-														key={topic}
 														type="button"
-														aria-pressed={selected}
+														aria-label={`Move ${topic} up`}
+														disabled={index === 0}
+														onClick={() =>
+															moveTopic(topic, -1)
+														}
+														className="grid size-9 place-items-center rounded-md text-ink-soft transition hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-30"
+													>
+														<ChevronUp size={15} />
+													</button>
+
+													<button
+														type="button"
+														aria-label={`Move ${topic} down`}
+														disabled={
+															index ===
+															preferences.topics
+																.length -
+																1
+														}
+														onClick={() =>
+															moveTopic(topic, 1)
+														}
+														className="grid size-9 place-items-center rounded-md text-ink-soft transition hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-30"
+													>
+														<ChevronDown
+															size={15}
+														/>
+													</button>
+
+													<button
+														type="button"
+														aria-label={`Unfollow ${topic}`}
 														onClick={() => {
 															if (
-																selected &&
 																preferences
 																	.topics
-																	.length ===
-																	1
+																	.length > 1
 															) {
-																return;
-															}
-
-															const nextTopics =
-																selected
-																	? preferences.topics.filter(
-																			(
-																				item,
-																			) =>
-																				item !==
-																				topic,
-																		)
-																	: [
-																			...preferences.topics,
-																			topic,
-																		];
-
-															toggleTopic(topic);
-
-															if (
-																nextTopics.length >
-																	0 &&
-																!nextTopics.includes(
-																	selectedCategory as PreferenceTopic,
-																)
-															) {
-																setSelectedCategory(
-																	nextTopics[0],
+																toggleTopic(
+																	topic,
 																);
 															}
 														}}
-														className={[
-															"min-h-11 rounded-lg border px-3 py-2 text-xs font-medium transition-colors",
-															"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2",
-															selected
-																? "border-accent bg-surface-muted text-ink"
-																: "border-line text-ink-soft hover:border-line-strong hover:text-ink",
-														].join(" ")}
+														disabled={
+															preferences.topics
+																.length === 1
+														}
+														className="min-h-9 rounded-md px-2 text-[11px] font-medium text-ink-subtle transition hover:bg-surface-muted hover:text-ink disabled:cursor-not-allowed disabled:opacity-30"
 													>
-														{topic}
-														{selected
-															? " · Following"
-															: ""}
+														Unfollow
 													</button>
-												);
-											},
+												</div>
+											),
 										)}
+									</div>
+
+									<div className="mt-5 border-t border-line pt-4">
+										<p className="mb-3 text-xs font-medium text-ink">
+											Discover other topics
+										</p>
+
+										<div className="flex flex-wrap gap-2">
+											{PREFERENCE_TOPICS.filter(
+												(topic) =>
+													!preferences.topics.includes(
+														topic,
+													),
+											).map((topic) => (
+												<button
+													key={topic}
+													type="button"
+													aria-label={`Follow ${topic}`}
+													onClick={() =>
+														toggleTopic(topic)
+													}
+													className="min-h-11 rounded-lg border border-line px-3 py-2 text-xs font-medium text-ink-soft transition-colors hover:border-line-strong hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+												>
+													+ {topic}
+												</button>
+											))}
+										</div>
 									</div>
 
 									{!storageAvailable && (
@@ -564,13 +653,13 @@ export function DashboardShell() {
 								)}
 
 								{activeSection === "For you" && isLoading ? (
-									<div className="flex min-h-[300px] items-center justify-center border-y border-line text-xs text-ink-subtle lg:flex-1">
+									<div className="flex min-h-75 items-center justify-center border-y border-line text-xs text-ink-subtle lg:flex-1">
 										<span className="mr-2 size-3 animate-spin rounded-full border-2 border-line-strong border-t-accent" />
 										Loading stories…
 									</div>
 								) : activeSection === "For you" &&
 								  isInitialError ? (
-									<div className="flex min-h-[300px] flex-col items-center justify-center border-y border-dashed border-line-strong px-6 text-center lg:flex-1">
+									<div className="flex min-h-75 flex-col items-center justify-center border-y border-dashed border-line-strong px-6 text-center lg:flex-1">
 										<Compass
 											size={20}
 											className="text-ink-subtle"
@@ -578,7 +667,7 @@ export function DashboardShell() {
 										<h2 className="mt-4 text-sm font-semibold text-ink">
 											Stories couldn’t be loaded
 										</h2>
-										<p className="mt-1 max-w-[270px] text-xs leading-5 text-ink-subtle">
+										<p className="mt-1 max-w-67.5 text-xs leading-5 text-ink-subtle">
 											Check your connection or try again
 											in a moment.
 										</p>
@@ -591,7 +680,7 @@ export function DashboardShell() {
 										</button>
 									</div>
 								) : visibleContent.length === 0 ? (
-									<div className="flex min-h-[300px] flex-col items-center justify-center border-y border-dashed border-line-strong px-6 text-center lg:flex-1">
+									<div className="flex min-h-75 flex-col items-center justify-center border-y border-dashed border-line-strong px-6 text-center lg:flex-1">
 										{activeSection === "Saved" ? (
 											<Bookmark
 												size={20}
@@ -610,7 +699,7 @@ export function DashboardShell() {
 												: "No matching stories"}
 										</h2>
 
-										<p className="mt-1 max-w-[280px] text-xs leading-5 text-ink-subtle">
+										<p className="mt-1 max-w-70 text-xs leading-5 text-ink-subtle">
 											{activeSection === "Saved"
 												? "Save an article or discovery and it will be waiting here."
 												: "Try another search or choose a different topic."}
@@ -629,7 +718,7 @@ export function DashboardShell() {
 										)}
 									</div>
 								) : (
-									<div className="grid min-h-[520px] grid-cols-1 overflow-hidden border-y border-line lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(300px,0.9fr)_minmax(0,1.5fr)]">
+									<div className="grid min-h-130 grid-cols-1 overflow-hidden border-y border-line lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(300px,0.9fr)_minmax(0,1.5fr)]">
 										{/* Story index */}
 										<div
 											className={`min-h-0 min-w-0 border-line lg:overflow-y-auto lg:overscroll-contain lg:border-r ${
@@ -641,56 +730,35 @@ export function DashboardShell() {
 											<div className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-line bg-surface px-3 sm:px-4">
 												{activeSection ===
 													"For you" && (
-													<nav
-														aria-label="Explore categories"
-														className="flex min-w-0 shrink-0 text-sm items-center gap-1.5 overflow-x-auto py-2 sm:gap-2"
+													<div
+														aria-label="Your personalized feed"
+														className="flex min-w-0 items-center gap-3 overflow-hidden"
 													>
-														<span className="mr-1 shrink-0 text-[10px] font-medium uppercase tracking-wider text-ink-subtle sm:mr-2">
-															Topics
+														<span className="inline-flex shrink-0 items-center gap-2 text-[10px] font-semibold uppercase tracking-[1.2px] text-ink-subtle">
+															<Sparkles
+																size={13}
+																className="text-accent"
+															/>
+															Your feed
 														</span>
 
-														{categories.map(
-															(category) => {
-																const active =
-																	selectedCategory ===
-																	category;
+														<span className="h-4 w-px shrink-0 bg-line" />
 
-																return (
-																	<button
+														<div className="flex min-w-0 items-center gap-1.5 overflow-x-auto">
+															{preferences.topics.map(
+																(topic) => (
+																	<span
 																		key={
-																			category
+																			topic
 																		}
-																		type="button"
-																		onClick={() => {
-																			setSelectedCategory(
-																				category,
-																			);
-																			setSelectedId(
-																				null,
-																			);
-																			setMobileDetailOpen(
-																				false,
-																			);
-																			mobileReturnScrollY.current =
-																				null;
-																		}}
-																		aria-pressed={
-																			active
-																		}
-																		className={`min-h-8 shrink-0 rounded-md px-3 py-1 text-xs font-medium transition ${
-																			active
-																				? "bg-ink text-surface"
-																				: "text-ink-soft hover:bg-surface-muted hover:text-ink"
-																		}`}
+																		className="shrink-0 rounded-md bg-surface-muted px-2 py-1 text-[10px] font-medium text-ink-soft"
 																	>
-																		{
-																			category
-																		}
-																	</button>
-																);
-															},
-														)}
-													</nav>
+																		{topic}
+																	</span>
+																),
+															)}
+														</div>
+													</div>
 												)}
 											</div>
 
@@ -742,7 +810,7 @@ export function DashboardShell() {
 																	</span>
 
 																	{item.image && (
-																		<div className="mt-0.5 h-[52px] w-[64px] shrink-0 overflow-hidden rounded-md bg-surface-muted sm:h-[64px] sm:w-[88px]">
+																		<div className="mt-0.5 h-13 w-16 shrink-0 overflow-hidden rounded-md bg-surface-muted sm:h-16 sm:w-22">
 																			{/* eslint-disable-next-line @next/next/no-img-element */}
 																			<img
 																				src={
@@ -819,7 +887,7 @@ export function DashboardShell() {
 																</button>
 
 																{active && (
-																	<span className="absolute bottom-0 left-0 top-0 w-[2px] bg-accent" />
+																	<span className="absolute bottom-0 left-0 top-0 w-0.5 bg-accent" />
 																)}
 															</div>
 														);
@@ -860,7 +928,7 @@ export function DashboardShell() {
 											}`}
 										>
 											{selectedItem ? (
-												<article className="flex min-h-[520px] flex-col lg:min-h-full">
+												<article className="flex min-h-130 flex-col lg:min-h-full">
 													<div className="sticky top-0 z-10 flex h-11 shrink-0 items-center justify-between border-b border-line bg-surface px-4 sm:px-6">
 														<button
 															type="button"
@@ -937,7 +1005,7 @@ export function DashboardShell() {
 															</span>
 														</div>
 
-														<h2 className="mt-5 max-w-[760px] text-[26px] font-semibold leading-[1.18] tracking-[-1px] text-ink sm:text-[32px] lg:text-[38px] lg:tracking-[-1.5px]">
+														<h2 className="mt-5 max-w-190 text-[26px] font-semibold leading-[1.18] tracking-[-1px] text-ink sm:text-[32px] lg:text-[38px] lg:tracking-[-1.5px]">
 															{selectedItem.title ||
 																"Saved story"}
 														</h2>
@@ -945,7 +1013,7 @@ export function DashboardShell() {
 														<div className="my-6 h-px w-12 shrink-0 bg-accent" />
 
 														{selectedItem.image && (
-															<div className="mb-7 aspect-[16/9] w-full max-w-[820px] overflow-hidden rounded-lg bg-surface-muted">
+															<div className="mb-7 aspect-video w-full max-w-205 overflow-hidden rounded-lg bg-surface-muted">
 																{/* eslint-disable-next-line @next/next/no-img-element */}
 																<img
 																	src={
@@ -958,7 +1026,7 @@ export function DashboardShell() {
 															</div>
 														)}
 
-														<p className="max-w-[720px] whitespace-pre-line text-[14px] leading-[1.85] text-ink-soft sm:text-[15px] sm:leading-[1.9]">
+														<p className="max-w-180 whitespace-pre-line text-[14px] leading-[1.85] text-ink-soft sm:text-[15px] sm:leading-[1.9]">
 															{selectedItem.description ||
 																"No description is available for this item."}
 														</p>
@@ -1001,7 +1069,7 @@ export function DashboardShell() {
 													</div>
 												</article>
 											) : (
-												<div className="flex min-h-[520px] items-center justify-center text-xs text-ink-subtle">
+												<div className="flex min-h-130 items-center justify-center text-xs text-ink-subtle">
 													Select a story to inspect
 													it.
 												</div>
